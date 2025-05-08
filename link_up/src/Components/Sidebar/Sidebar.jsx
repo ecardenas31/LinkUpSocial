@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import io from "socket.io-client";
 import styles from "./Sidebar.module.css";
-
-const socket = io("http://localhost:5001");
+import socket from "../../socket";
 
 const Sidebar = () => {
   const [sidebarUser, setSidebarUser] = useState(null);

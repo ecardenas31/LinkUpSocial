@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import PostCard from "../PostCard/PostCard"; // Make sure PostCard component is imported
+import PostCard from "../PostCard/PostCard";
 import styles from "./Profile.module.css";
+import API from "../../api"; // ✅ Import centralized backend URL
 
 const ProfilePage = () => {
   const { username } = useParams();
@@ -13,8 +14,8 @@ const ProfilePage = () => {
   const [likedPosts, setLikedPosts] = useState([]);
   const [userPosts, setUserPosts] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
-
   const timestamp = Date.now();
+
   function detectEmbedType(url) {
     if (!url) return null;
     const lower = url.toLowerCase();
@@ -24,34 +25,33 @@ const ProfilePage = () => {
     if (lower.includes("spotify.com")) return "spotify";
     return "audio";
   }
-  
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://localhost:5001/api/users/username/${username}`);
+        const res = await fetch(`${API}/api/users/username/${username}`);
         const data = await res.json();
         setProfileUser(data);
-        console.log("[Profile.jsx] User data:", data);
 
         const bgPromise = new Promise((resolve) => {
           const bgImg = new Image();
-          bgImg.src = `http://localhost:5001/api/users/background/${data.id}?t=${Date.now()}`;
+          bgImg.src = `${API}/api/users/background/${data.id}?t=${Date.now()}`;
           bgImg.onload = resolve;
-          bgImg.onerror = resolve; // <- ADD THIS
+          bgImg.onerror = resolve;
         });
-        
-  
+
         const coverPromise = new Promise((resolve) => {
           if (data.CoverPhoto) {
             const coverImg = new Image();
-            coverImg.src = `http://localhost:5001/api/users/${data.id}/cover-photo?t=${Date.now()}`;
+            coverImg.src = `${API}/api/users/${data.id}/cover-photo?t=${Date.now()}`;
             coverImg.onload = resolve;
+            coverImg.onerror = resolve;
           } else {
-            resolve(); 
+            resolve();
           }
         });
-          await Promise.all([bgPromise, coverPromise]);
-  
+
+        await Promise.all([bgPromise, coverPromise]);
         setBackgroundLoaded(true);
         setLoading(false);
       } catch (err) {
@@ -60,24 +60,22 @@ const ProfilePage = () => {
         setLoading(false);
       }
     };
-  
+
     fetchUser();
   }, [username]);
-  
-  
 
   useEffect(() => {
     if (!profileUser?.id) return;
 
     if (tab === "liked") {
-      fetch(`http://localhost:5001/api/likes/liked/${profileUser.id}`)
+      fetch(`${API}/api/likes/liked/${profileUser.id}`)
         .then(res => res.json())
         .then(data => setLikedPosts(data))
         .catch(err => console.error("Failed to fetch liked posts:", err));
     }
 
     if (tab === "posts") {
-      fetch(`http://localhost:5001/api/posts/user/${profileUser.id}`)
+      fetch(`${API}/api/posts/user/${profileUser.id}`)
         .then(res => res.json())
         .then(data => setUserPosts(data))
         .catch(err => console.error("Failed to fetch user's posts:", err));
@@ -87,9 +85,13 @@ const ProfilePage = () => {
   if (loading || !backgroundLoaded) {
     return <div className="text-center mt-5 text-muted">Loading...</div>;
   }
-    if (!profileUser) return <div className="text-center mt-5 text-danger">User not found.</div>;
 
-  const backgroundImage = `http://localhost:5001/api/users/background/${profileUser.id}?t=${timestamp}`;
+  if (!profileUser) return <div className="text-center mt-5 text-danger">User not found.</div>;
+
+  const backgroundImage = `${API}/api/users/background/${profileUser.id}?t=${timestamp}`;
+  const profilePicUrl = `${API}/users/${profileUser.id}/profile-pic?t=${timestamp}`;
+  const coverPhotoUrl = `${API}/api/users/${profileUser.id}/cover-photo?t=${timestamp}`;
+  const customImageUrl = `${API}/api/users/custom-image/${profileUser.id}?t=${Date.now()}`;
   const aboutMeHTML = profileUser.AboutMe || "<p>No info yet.</p>";
 
   return (
@@ -104,54 +106,34 @@ const ProfilePage = () => {
         paddingTop: "60px",
       }}
     >
-
-
       <div className="container p-4">
-      <div
-        style={{
-          width: "100%",
-          height: "200px",
-          maxHeight: "100vh", // ⬅️ add this
-          backgroundImage: hasCoverPhoto 
-            ? `url(http://localhost:5001/api/users/cover-photo/${profileUser.id}?t=${timestamp})`
-            : "none",
-          backgroundColor: hasCoverPhoto ? "transparent" : "rgba(255, 255, 255, 0.1)",
-          backdropFilter: hasCoverPhoto ? "none" : "blur(10px)",
-          WebkitBackdropFilter: hasCoverPhoto ? "none" : "blur(10px)",
-          borderRadius: "12px",
-          border: hasCoverPhoto ? "none" : "1px solid rgba(255, 255, 255, 0.3)",
-          padding: "10px",
-          marginBottom: "1rem",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          position: "relative",
-        }}
-
-      >
-
-        <ul className="nav nav-tabs mb-0 justify-content-center" style={{ backgroundColor: hasCoverPhoto ? "rgba(255,255,255,0.2)" : "transparent", borderRadius: "8px" }}>
-          <li className="nav-item">
-            <button className={`nav-link ${tab === "profile" ? "active" : ""}`} onClick={() => setTab("profile")}>Profile</button>
-          </li>
-          <li className="nav-item">
-            <button className={`nav-link ${tab === "posts" ? "active" : ""}`} onClick={() => setTab("posts")}>Posts</button>
-          </li>
-          <li className="nav-item">
-            <button className={`nav-link ${tab === "liked" ? "active" : ""}`} onClick={() => setTab("liked")}>Liked</button>
-          </li>
-          <li>
-            
-          </li>
-          
-        </ul>
-        
-      </div>
-
+        <div
+          style={{
+            width: "100%",
+            height: "200px",
+            maxHeight: "100vh",
+            backgroundImage: hasCoverPhoto ? `url(${coverPhotoUrl})` : "none",
+            backgroundColor: hasCoverPhoto ? "transparent" : "rgba(255, 255, 255, 0.1)",
+            backdropFilter: hasCoverPhoto ? "none" : "blur(10px)",
+            WebkitBackdropFilter: hasCoverPhoto ? "none" : "blur(10px)",
+            borderRadius: "12px",
+            border: hasCoverPhoto ? "none" : "1px solid rgba(255, 255, 255, 0.3)",
+            padding: "10px",
+            marginBottom: "1rem",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            position: "relative",
+          }}
+        >
+          <ul className="nav nav-tabs mb-0 justify-content-center" style={{ backgroundColor: hasCoverPhoto ? "rgba(255,255,255,0.2)" : "transparent", borderRadius: "8px" }}>
+            <li className="nav-item"><button className={`nav-link ${tab === "profile" ? "active" : ""}`} onClick={() => setTab("profile")}>Profile</button></li>
+            <li className="nav-item"><button className={`nav-link ${tab === "posts" ? "active" : ""}`} onClick={() => setTab("posts")}>Posts</button></li>
+            <li className="nav-item"><button className={`nav-link ${tab === "liked" ? "active" : ""}`} onClick={() => setTab("liked")}>Liked</button></li>
+          </ul>
+        </div>
 
         <div className="row p-3">
-          {/* Left Side - Profile Card */}
-          
           <div className="col-md-4 mb-4">
             <div className="card text-center p-4" style={{
               backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)",
@@ -162,23 +144,17 @@ const ProfilePage = () => {
             }}>
               <div className="d-flex justify-content-center pb-3">
                 <img
-                  src={`http://localhost:5001/users/${profileUser.id}/profile-pic?t=${timestamp}`}
+                  src={profilePicUrl}
                   alt="Profile"
                   className="rounded-circle"
                   style={{ width: "120px", height: "120px", objectFit: "cover" }}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/default.jpg";
-                  }}
+                  onError={(e) => { e.target.onerror = null; e.target.src = "/default.jpg"; }}
                 />
               </div>
               <h4>{profileUser.FirstName} {profileUser.LastName}</h4>
               <p className="text-muted" style={{ whiteSpace: "pre-wrap" }}>
                 {(profileUser.bio && profileUser.bio.trim() !== "") ? profileUser.bio : "Hello, World!"}
               </p>
-
-
-
               {profileUser.Username === JSON.parse(localStorage.getItem("currentUser"))?.Username && (
                 <Link to={`/customize-profile/${profileUser.Username}`}>
                   <button className="btn btn-success mt-2">Edit Profile</button>
@@ -186,37 +162,25 @@ const ProfilePage = () => {
               )}
             </div>
             {tab === "profile" && profileUser.customImage && (
-              <div
-                className="card p-3 mt-4"
-                style={{
-                  backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)",
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                  textAlign: "center"
-                }}
-              >
+              <div className="card p-3 mt-4" style={{
+                backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                borderRadius: "12px",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                textAlign: "center"
+              }}>
                 <img
-                  src={`http://localhost:5001/api/users/custom-image/${profileUser.id}?t=${Date.now()}`}
-                  alt="Custom Image"
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    borderRadius: "8px",
-                    objectFit: "cover"
-                  }}
+                  src={customImageUrl}
+                  alt="Custom"
+                  style={{ width: "100%", height: "auto", borderRadius: "8px", objectFit: "cover" }}
                   onError={(e) => { e.target.style.display = "none"; }}
                 />
               </div>
             )}
-
-
-
           </div>
-          {/* Right Side Content */}
-          <div className="col-md-8">
 
+          <div className="col-md-8">
             {tab === "profile" && (
               <div className="card p-4 mb-4" style={{
                 backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)",
@@ -239,7 +203,6 @@ const ProfilePage = () => {
                     </ul>
                   </div>
                 )}
-
                 <p><strong>Joined:</strong> {new Date(profileUser.createdAt).toLocaleDateString()}</p>
                 <div className="mt-3">
                   <h5>About Me</h5>
@@ -247,8 +210,8 @@ const ProfilePage = () => {
                 </div>
               </div>
             )}
-              {tab === "profile" && profileUser.themeSongUrl &&
-              profileUser.themeSongUrl?.trim() !== "" && (
+
+            {tab === "profile" && profileUser.themeSongUrl?.trim() !== "" && (
               <div className="card p-4 mb-4" style={{
                 backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)",
                 backdropFilter: "blur(10px)",
@@ -261,7 +224,6 @@ const ProfilePage = () => {
                 )}
                 {(() => {
                   const type = detectEmbedType(profileUser.themeSongUrl);
-
                   switch (type) {
                     case "youtube":
                       const videoId = new URLSearchParams(new URL(profileUser.themeSongUrl).search).get('v') ||
@@ -282,7 +244,7 @@ const ProfilePage = () => {
                           width="100%"
                           height="80"
                           allow="autoplay"
-                          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(profileUser.themeSongUrl)}&auto_play=true&hide_related=false&show_comments=false&show_user=false&show_reposts=false&visual=false`}
+                          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(profileUser.themeSongUrl)}&auto_play=true`}
                           style={{ borderRadius: "8px" }}
                         ></iframe>
                       );
@@ -324,7 +286,7 @@ const ProfilePage = () => {
             )}
 
             {tab === "posts" && (
-              <div className="card p-4 mb-4" style={{ backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.3)" }}>
+              <div className="card p-4 mb-4">
                 <h5>Posts Created</h5>
                 {userPosts.length > 0 ? (
                   userPosts.map(post => (
@@ -337,7 +299,7 @@ const ProfilePage = () => {
             )}
 
             {tab === "liked" && (
-              <div className="card p-4 mb-4" style={{ backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.3)" }}>
+              <div className="card p-4 mb-4">
                 <h5>Liked Posts</h5>
                 {likedPosts.length > 0 ? (
                   likedPosts.map(post => (
@@ -346,13 +308,6 @@ const ProfilePage = () => {
                 ) : (
                   <p className="text-muted">No liked posts yet.</p>
                 )}
-              </div>
-            )}
-
-            {tab === "settings" && (
-              <div className="card p-4 mb-4" style={{ backgroundColor: profileUser.background_color || "rgba(255, 255, 255, 0.1)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.3)" }}>
-                <h5>Settings</h5>
-                <p className="text-muted">Settings page coming soon!</p>
               </div>
             )}
           </div>

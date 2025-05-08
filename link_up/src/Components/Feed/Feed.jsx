@@ -3,6 +3,7 @@ import styles from "./feed.module.css";
 import PostCard from "../PostCard/PostCard";
 import UserCard from "../UserCard/UserCard";
 import { useNavigate } from "react-router-dom";
+import API from "../../api";
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -14,8 +15,6 @@ const Feed = () => {
   const [newPostContent, setNewPostContent] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const fileInputRef = useRef(null); // Used to reset file input
-
-  const API = "http://localhost:5001/api";
 
   const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));

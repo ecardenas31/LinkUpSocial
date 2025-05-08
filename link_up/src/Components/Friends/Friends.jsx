@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import styles from "./Friends.module.css";
 import { Button, Card, Nav, Form } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-
-const API = "http://localhost:5001/api";
+import API from "../../api";
 
 const Friends = () => {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));

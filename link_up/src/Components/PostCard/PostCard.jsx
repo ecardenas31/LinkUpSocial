@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styles from "./PostCard.module.css";
+import API from "../../api";
 
 const PostCard = ({ post, onPostDeleted }) => {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -22,7 +23,6 @@ const PostCard = ({ post, onPostDeleted }) => {
 
   const [pendingCommentDelete, setPendingCommentDelete] = useState(null);
 
-  const API = "http://localhost:5001/api";
 
   useEffect(() => {
     if (!currentUser) return;

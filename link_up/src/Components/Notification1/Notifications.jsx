@@ -3,9 +3,8 @@ import { Container, ListGroup, Badge, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import styles from "./Notifications.module.css";
-
-const socket = io("http://localhost:5001");
-const API = "http://localhost:5001/api";
+import API from "../../api";
+import socket from "../../socket";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);

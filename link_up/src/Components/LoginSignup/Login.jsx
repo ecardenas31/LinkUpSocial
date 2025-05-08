@@ -1,7 +1,8 @@
 import React, { useState, useContext } from "react";
 import styles from "./LoginSignup.module.css";
 import { useNavigate } from "react-router-dom";
-import { UserContext } from "../../contextProvider"; 
+import { UserContext } from "../../contextProvider";
+import API from "../../api"; // ✅ centralized backend URL
 
 const Login = () => {
   const navigate = useNavigate();
@@ -23,44 +24,43 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     const payload = {
       loginId: formData.Username.trim(),
       Password: formData.Password.trim(),
     };
-  
+
     if (!payload.loginId || !payload.Password) {
       setError("Please enter both username and password.");
       return;
     }
-  
+
     try {
-      const res = await fetch("http://localhost:5001/api/users/login", {
+      const res = await fetch(`${API}/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
-  
-      const data = await res.json(); // ✅ you get 'data'
-  
+
+      const data = await res.json();
+
       if (!res.ok || !data.user?.id) {
-        setError(data.error || "Login failed"); // ✅ use data.error
+        setError(data.error || "Login failed");
         return;
       }
-  
-      localStorage.setItem("currentUser", JSON.stringify(data.user)); // ✅ store data.user
-      localStorage.setItem("token", data.token); // ✅ store token if needed
-  
-      setUser(data.user); // ✅ set user correctly
+
+      localStorage.setItem("currentUser", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+
+      setUser(data.user);
       navigate("/feed");
     } catch (err) {
       console.error("Login error:", err);
       setError("Something went wrong. Please try again.");
     }
   };
-  
 
   return (
     <div className={styles.authPage}>

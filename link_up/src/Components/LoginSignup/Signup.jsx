@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./LoginSignup.module.css";
+import API from "../../api"; // ✅ Centralized backend URL
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:5001/api/users", {
+      const response = await fetch(`${API}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,7 +62,7 @@ const Signup = () => {
       });
 
       const data = await response.json();
-      console.log("Signup response:", response.status, data); // ✅ DEBUG LOG
+      console.log("Signup response:", response.status, data);
 
       if (!response.ok) {
         setError(data.error || "Failed to create account. Please try again.");

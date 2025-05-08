@@ -3,9 +3,8 @@ import { Button, Modal, Form, InputGroup } from "react-bootstrap";
 import { useLocation } from "react-router-dom";
 import io from "socket.io-client";
 import "./Messages.module.css";
-
-const API = "http://localhost:5001/api";
-const socket = io("http://localhost:5001");
+import API from "../../api";
+import socket from "../../socket";
 
 const Messages = () => {
   const [selectedContact, setSelectedContact] = useState(null);
