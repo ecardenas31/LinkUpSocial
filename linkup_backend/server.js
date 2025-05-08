@@ -14,7 +14,8 @@ const io = new Server(http, { cors: { origin: "*" } });
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static("uploads"));
 
 // File upload storage config
@@ -26,7 +27,10 @@ const storage = multer.diskStorage({
     cb(null, unique);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 function safeLoad(path, args = []) {
   try {
@@ -55,7 +59,7 @@ const messageRoutes = safeLoad("./routes/messages", [io]);
 const notificationRoutes = safeLoad("./routes/notifications", [io]);
 
 // Apply routes
-app.use("/api/users", userRoutes); // ✅ Correct prefix
+app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/likes", likeRoutes);
@@ -80,11 +84,13 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
+// Start server (Render expects app to use PORT and bind properly)
 const PORT = process.env.PORT || 5001;
-http.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-);
+app.set("port", PORT); // Optional for Render clarity
+
+http.listen(PORT, () => {
+  console.log(`🚀 HTTP + Socket.IO server running on port ${PORT}`);
+});
 
 // Export for route use
 module.exports.io = io;
