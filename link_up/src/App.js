@@ -12,7 +12,7 @@ import Friends from "./Components/Friends/Friends";
 import Explore from "./Components/Explore/Explore";
 import Notifications from "./Components/Notification1/Notifications";
 import { UserProvider } from "./contextProvider";
-import socket from "../../socket";
+import socket from "./socket";
 
 function LinkUp() {
   useEffect(() => {
