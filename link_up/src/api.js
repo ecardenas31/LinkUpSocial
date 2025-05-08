@@ -1,2 +1,4 @@
-const API = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+
+const API = process.env.REACT_APP_BACKEND_URL || "https://linkup-backend.onrender.com";
+
 export default API;
