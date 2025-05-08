@@ -45,7 +45,6 @@ function safeLoad(path, args = []) {
   }
 }
 
-
 // Routes
 const userRoutes = safeLoad("./routes/users");
 const postRoutes = safeLoad("./routes/posts", [upload]);
@@ -56,8 +55,7 @@ const messageRoutes = safeLoad("./routes/messages", [io]);
 const notificationRoutes = safeLoad("./routes/notifications", [io]);
 
 // Apply routes
-app.use("/api/users", userRoutes);
-app.use("/", userRoutes);
+app.use("/api/users", userRoutes); // ✅ Correct prefix
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/likes", likeRoutes);
