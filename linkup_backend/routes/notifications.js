@@ -34,11 +34,24 @@ module.exports = function (io) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // ✅ Optional: validate allowed types
+    const allowedTypes = [
+      "message",
+      "comment",
+      "like",
+      "friend_request",
+      "friend_accepted",
+    ];
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({ error: "Invalid notification type" });
+    }
+
     try {
+      // ✅ Insert with createdAt from DB
       const [result] = await pool.query(
         `INSERT INTO notifications 
-         (userId, type, message, fromUserId, postId, commentId) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         (userId, type, message, fromUserId, postId, commentId, createdAt) 
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
         [userId, type, message, fromUserId, postId, commentId]
       );
 
@@ -51,10 +64,10 @@ module.exports = function (io) {
         postId,
         commentId,
         isRead: 0,
-        createdAt: new Date(),
+        createdAt: new Date(), // Frontend display fallback (optional)
       };
 
-      // ✅ Emit to user's socket room
+      // ✅ Emit to user's room
       io.to(`user-${userId}`).emit("notification", newNotification);
 
       res.status(201).json(newNotification);
@@ -64,7 +77,7 @@ module.exports = function (io) {
     }
   });
 
-  // 🔹 PATCH to mark a notification as read
+  // 🔹 PATCH to mark one as read
   router.patch("/read/:id", async (req, res) => {
     const { id } = req.params;
     try {
@@ -76,7 +89,7 @@ module.exports = function (io) {
     }
   });
 
-  // 🔹 PATCH to mark ALL as read
+  // 🔹 PATCH to mark all as read for a user
   router.patch("/readAll/:userId", async (req, res) => {
     const { userId } = req.params;
     try {

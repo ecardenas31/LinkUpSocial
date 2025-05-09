@@ -4,7 +4,7 @@ const pool = require("../db");
 module.exports = function (io) {
   const router = express.Router();
 
-  // ✅ Fetch all messages or between two users
+  // ✅ Fetch messages between users or for all
   router.get("/:userId/:contactId", async (req, res) => {
     const { userId, contactId } = req.params;
     try {
@@ -27,7 +27,7 @@ module.exports = function (io) {
       res.json(rows);
     } catch (err) {
       console.error("Fetch messages error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
@@ -53,21 +53,23 @@ module.exports = function (io) {
     }
   });
 
-  // ✅ Socket.IO setup
+  // ✅ Socket.IO events
   io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    // Join personal room
     socket.on("join", (userId) => {
       socket.join(`user-${userId}`);
       console.log(`🟢 User ${userId} joined room user-${userId}`);
     });
 
-    // ✅ Send a message with notification
     socket.on("sendMessage", async ({ senderId, receiverId, content }) => {
+      if (!senderId || !receiverId || !content) {
+        return socket.emit("error", { message: "Missing required fields." });
+      }
+
       try {
         const [result] = await pool.query(
-          "INSERT INTO messages (senderId, receiverId, content) VALUES (?, ?, ?)",
+          "INSERT INTO messages (senderId, receiverId, content, createdAt) VALUES (?, ?, ?, NOW())",
           [senderId, receiverId, content]
         );
 
@@ -76,11 +78,10 @@ module.exports = function (io) {
           [result.insertId]
         );
 
-        // Send to both participants
         io.to(`user-${receiverId}`).emit("receiveMessage", savedMsg[0]);
         io.to(`user-${senderId}`).emit("receiveMessage", savedMsg[0]);
 
-        // 🔔 Send real-time notification to receiver
+        // 🔔 Emit notification to receiver
         const [[senderInfo]] = await pool.query(
           "SELECT CONCAT(FirstName, ' ', LastName) AS name FROM users WHERE id = ?",
           [senderId]
@@ -96,7 +97,7 @@ module.exports = function (io) {
           });
         }
 
-        // ✅ Check for new conversation
+        // ✅ If it's a new conversation
         const [existing] = await pool.query(
           `SELECT id FROM messages 
            WHERE (senderId = ? AND receiverId = ?) 
@@ -116,7 +117,6 @@ module.exports = function (io) {
       }
     });
 
-    // ✅ Read receipt handler
     socket.on("readMessages", ({ senderId, receiverId }) => {
       io.to(`user-${senderId}`).emit("messagesRead", { by: receiverId });
     });

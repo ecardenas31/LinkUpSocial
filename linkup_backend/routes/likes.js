@@ -4,7 +4,7 @@ const pool = require("../db");
 module.exports = function (io) {
   const router = express.Router();
 
-  // GET like status
+  // 🔹 Check if a post is liked by a user
   router.get("/check", async (req, res) => {
     const { postId, userId } = req.query;
     if (!postId || !userId) {
@@ -13,17 +13,17 @@ module.exports = function (io) {
 
     try {
       const [rows] = await pool.query(
-        "SELECT * FROM likes WHERE postId = ? AND userId = ?",
+        "SELECT 1 FROM likes WHERE postId = ? AND userId = ?",
         [postId, userId]
       );
       res.json({ liked: rows.length > 0 });
     } catch (err) {
       console.error("Check like error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to check like status" });
     }
   });
 
-  // POST like
+  // 🔹 Like a post
   router.post("/", async (req, res) => {
     const { postId, userId } = req.body;
     if (!postId || !userId) {
@@ -46,6 +46,7 @@ module.exports = function (io) {
         [userId]
       );
 
+      // 🔔 Send notification if someone else liked the post
       if (post && post.userId !== userId) {
         io.to(`user-${post.userId}`).emit("notification", {
           type: "like",
@@ -57,14 +58,17 @@ module.exports = function (io) {
         });
       }
 
-      res.status(201).json({ message: "Liked" });
+      res.status(201).json({ message: "Post liked" });
     } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({ error: "Post already liked" });
+      }
       console.error("Add like error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to like post" });
     }
   });
 
-  // DELETE unlike
+  // 🔹 Unlike a post
   router.delete("/", async (req, res) => {
     const { postId, userId } = req.body;
     if (!postId || !userId) {
@@ -76,41 +80,41 @@ module.exports = function (io) {
         "DELETE FROM likes WHERE postId = ? AND userId = ?",
         [postId, userId]
       );
-      res.json({ message: "Unliked" });
+      res.json({ message: "Post unliked" });
     } catch (err) {
       console.error("Remove like error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to unlike post" });
     }
   });
 
-// GET all posts liked by a specific user
-router.get("/liked/:userId", async (req, res) => {
-  const { userId } = req.params;
+  // 🔹 Get all posts liked by a user
+  router.get("/liked/:userId", async (req, res) => {
+    const { userId } = req.params;
 
-  try {
-    const [likedPosts] = await pool.query(
-      `SELECT 
-        posts.*, 
-        CONCAT(users.FirstName, ' ', users.LastName) AS authorName,
-        JSON_ARRAYAGG(
-          JSON_OBJECT('url', media.url, 'type', media.type)
-        ) AS media
-      FROM likes
-      JOIN posts ON likes.postId = posts.id
-      JOIN users ON posts.userId = users.id
-      LEFT JOIN media ON media.postId = posts.id
-      WHERE likes.userId = ?
-      GROUP BY posts.id
-      ORDER BY likes.createdAt DESC`,
-      [userId]
-    );    
+    try {
+      const [likedPosts] = await pool.query(
+        `SELECT 
+          posts.*, 
+          CONCAT(users.FirstName, ' ', users.LastName) AS authorName,
+          JSON_ARRAYAGG(
+            JSON_OBJECT('url', media.url, 'type', media.type)
+          ) AS media
+        FROM likes
+        JOIN posts ON likes.postId = posts.id
+        JOIN users ON posts.userId = users.id
+        LEFT JOIN media ON media.postId = posts.id
+        WHERE likes.userId = ?
+        GROUP BY posts.id
+        ORDER BY likes.createdAt DESC`,
+        [userId]
+      );
 
-    res.json(likedPosts);
-  } catch (err) {
-    console.error("Error fetching liked posts:", err);
-    res.status(500).json({ error: "Failed to fetch liked posts" });
-  }
-});
+      res.json(likedPosts);
+    } catch (err) {
+      console.error("Error fetching liked posts:", err);
+      res.status(500).json({ error: "Failed to fetch liked posts" });
+    }
+  });
 
-  return router; // ✅ Don't forget this
+  return router;
 };

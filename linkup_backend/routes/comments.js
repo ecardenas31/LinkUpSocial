@@ -4,7 +4,7 @@ const pool = require("../db");
 module.exports = function (io) {
   const router = express.Router();
 
-  // GET comments for a post
+  // 🔹 Get all comments for a post
   router.get("/post/:postId", async (req, res) => {
     const { postId } = req.params;
     try {
@@ -19,13 +19,14 @@ module.exports = function (io) {
       res.json(comments);
     } catch (err) {
       console.error("Fetch comments error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to fetch comments" });
     }
   });
 
-  // POST new comment or reply
+  // 🔹 Create new comment or reply
   router.post("/", async (req, res) => {
     const { userId, postId, text, parentId = null } = req.body;
+
     if (!userId || !postId || !text) {
       return res.status(400).json({ error: "Missing comment fields" });
     }
@@ -46,7 +47,7 @@ module.exports = function (io) {
 
       const newComment = saved[0];
 
-      // Get post owner to notify
+      // 🔔 Notify post owner if not commenting on own post
       const [[post]] = await pool.query("SELECT userId FROM posts WHERE id = ?", [postId]);
 
       if (post && post.userId !== userId) {
@@ -64,23 +65,29 @@ module.exports = function (io) {
       res.status(201).json(newComment);
     } catch (err) {
       console.error("Post comment error:", err);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: "Failed to post comment" });
     }
   });
 
-  // PUT update a comment
+  // 🔹 Edit a comment
   router.put("/:id", async (req, res) => {
     const { text } = req.body;
     const { id } = req.params;
+
+    if (!text) {
+      return res.status(400).json({ error: "Text is required" });
+    }
+
     try {
       await pool.query("UPDATE comments SET text = ? WHERE id = ?", [text, id]);
       res.json({ message: "Comment updated" });
     } catch (err) {
-      res.status(500).json({ error: "Update failed" });
+      console.error("Update comment error:", err);
+      res.status(500).json({ error: "Failed to update comment" });
     }
   });
 
-  // DELETE comment and its replies
+  // 🔹 Delete a comment and its replies
   router.delete("/:id", async (req, res) => {
     const { id } = req.params;
     try {
@@ -88,9 +95,10 @@ module.exports = function (io) {
       await pool.query("DELETE FROM comments WHERE id = ?", [id]);
       res.json({ message: "Comment deleted" });
     } catch (err) {
-      res.status(500).json({ error: "Delete failed" });
+      console.error("Delete comment error:", err);
+      res.status(500).json({ error: "Failed to delete comment" });
     }
   });
 
-  return router; // ✅ This is key!
+  return router;
 };

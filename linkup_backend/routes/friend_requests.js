@@ -4,7 +4,7 @@ const pool = require("../db");
 module.exports = function (io) {
   const router = express.Router();
 
-  // POST send a friend request
+  // 🔹 Send a friend request
   router.post("/", async (req, res) => {
     const { senderId, receiverId } = req.body;
     if (!senderId || !receiverId) {
@@ -31,7 +31,7 @@ module.exports = function (io) {
         [senderId, receiverId]
       );
 
-      // 🔔 Emit real-time notification to receiver
+      // 🔔 Emit notification to receiver
       io.to(`user-${receiverId}`).emit("notification", {
         type: "friend_request",
         fromUserId: senderId,
@@ -47,7 +47,7 @@ module.exports = function (io) {
     }
   });
 
-  // GET all friend requests for a user
+  // 🔹 Get all friend requests (sent or received) for a user
   router.get("/:userId", async (req, res) => {
     const { userId } = req.params;
     try {
@@ -62,7 +62,7 @@ module.exports = function (io) {
     }
   });
 
-  // PUT accept or reject a request
+  // 🔹 Accept or reject a friend request
   router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -101,8 +101,8 @@ module.exports = function (io) {
     }
   });
 
-  // DELETE accepted friendship
-  router.delete("/friend_requests/:userId/:friendId", async (req, res) => {
+  // 🔹 Delete an accepted friend (unfriend)
+  router.delete("/:userId/:friendId", async (req, res) => {
     const { userId, friendId } = req.params;
     try {
       await pool.query(
@@ -113,10 +113,10 @@ module.exports = function (io) {
       );
       res.sendStatus(200);
     } catch (err) {
-      console.error(err);
+      console.error("Unfriend error:", err);
       res.sendStatus(500);
     }
   });
 
-  return router; // ✅ This is what allows your server.js to work
+  return router;
 };
