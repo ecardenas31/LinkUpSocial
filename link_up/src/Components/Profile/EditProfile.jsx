@@ -4,7 +4,6 @@ import { UserContext } from "../../contextProvider";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { fetchAPI } from "../../fetchAPI";
 import API from "../../api"; // Base API URL
-const STATIC_URL = "https://linkupsocial.onrender.com"; // For serving images outside /api
 
 const CustomizeProfile = () => {
   const { user } = useContext(UserContext);
@@ -34,7 +33,9 @@ const CustomizeProfile = () => {
           setOriginalCardColor(fresh.background_color || "#ffffff");
           setHtmlInput(fresh.AboutMe || "");
           setOriginalAboutMe(fresh.AboutMe || "");
-          setProfilePicUrl(`${STATIC_URL}/users/${fresh.id}/profile-pic`);
+          setProfilePicUrl(fresh.profilePicUrl || "");
+          setCoverPhotoUrl(fresh.coverPhotoUrl || "");
+          setBgUrl(fresh.backgroundImageUrl || "");
           setThemeSongUrl(fresh.themeSongUrl || "");
           setThemeSongTitle(fresh.themeSongTitle || "");
           setBioInput(fresh.bio || "");
@@ -45,6 +46,9 @@ const CustomizeProfile = () => {
             AboutMe: fresh.AboutMe,
             background_color: fresh.background_color,
             bio: fresh.bio,
+            profilePicUrl: fresh.profilePicUrl,
+            coverPhotoUrl: fresh.coverPhotoUrl,
+            backgroundImageUrl: fresh.backgroundImageUrl,
           };
           localStorage.setItem("currentUser", JSON.stringify(minimalUserData));
         })
@@ -70,9 +74,8 @@ const CustomizeProfile = () => {
       });
 
       if (data.url) {
-        const fullUrl = `${STATIC_URL}${data.url}`;
-        setBgUrl(fullUrl);
-        localStorage.setItem("currentUser", JSON.stringify({ ...user }));
+        setBgUrl(data.url);
+        localStorage.setItem("currentUser", JSON.stringify({ ...user, backgroundImageUrl: data.url }));
       }
     } catch (err) {
       console.error(err);
@@ -113,10 +116,11 @@ const CustomizeProfile = () => {
         const formData = new FormData();
         formData.append("profilePic", stagedProfilePic);
         formData.append("userId", user.id);
-        await fetchAPI(`${API}/users/upload-profile-pic`, {
+        const res = await fetchAPI(`${API}/users/upload-profile-pic`, {
           method: "POST",
           body: formData,
         });
+        if (res?.url) setProfilePicUrl(res.url);
       }
 
       if (stagedCoverPhoto) {
@@ -129,7 +133,8 @@ const CustomizeProfile = () => {
           body: formData,
         });
 
-        if (!res.url) throw new Error("Failed to upload cover photo.");
+        if (res?.url) setCoverPhotoUrl(res.url);
+        else throw new Error("Failed to upload cover photo.");
       }
 
       if (customImageFile) {
@@ -154,6 +159,9 @@ const CustomizeProfile = () => {
         AboutMe: trimmedAboutMe,
         background_color: trimmedColor,
         bio: bioInput.trim(),
+        profilePicUrl,
+        coverPhotoUrl,
+        backgroundImageUrl: bgUrl,
         links: JSON.stringify(trimmedLinks),
       };
 
@@ -172,7 +180,8 @@ const CustomizeProfile = () => {
 
   return (
     <div className="container mt-5 p-4">
-      {/* ... UI code remains unchanged ... */}
+      {/* Your profile customization UI goes here */}
+      {/* Display and upload logic for profilePicUrl, coverPhotoUrl, bgUrl, etc. */}
     </div>
   );
 };

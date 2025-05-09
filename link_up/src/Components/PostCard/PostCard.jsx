@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import styles from "./PostCard.module.css";
 import API from "../../api";
 
-const STATIC_URL = API;
-
 const PostCard = ({ post, onPostDeleted }) => {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
@@ -278,7 +276,7 @@ const PostCard = ({ post, onPostDeleted }) => {
               file.type === "image" ? (
                 <img
                   key={index}
-                  src={`${STATIC_URL}${file.url}`}
+                  src={file.url}
                   alt={`media-${index}`}
                   className="img-fluid rounded mb-3"
                 />
@@ -289,7 +287,7 @@ const PostCard = ({ post, onPostDeleted }) => {
                   className="img-fluid rounded mb-3"
                   style={{ maxHeight: "500px" }}
                 >
-                  <source src={`${STATIC_URL}${file.url}`} type="video/mp4" />
+                  <source src={file.url} type="video/mp4" />
                 </video>
               )
             )}

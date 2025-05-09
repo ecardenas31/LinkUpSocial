@@ -6,6 +6,30 @@ const path = require("path");
 const multer = require("multer");
 const pool = require("./db");
 
+// Cloudinary Setup
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => ({
+    folder: "linkup_uploads",
+    format: file.mimetype.split("/")[1],
+    public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+  }),
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
 // App + Socket.IO setup
 const app = express();
 const http = require("http").createServer(app);
@@ -16,21 +40,6 @@ const io = new Server(http, { cors: { origin: "*" } });
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use("/uploads", express.static("uploads"));
-
-// File upload storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-});
 
 function safeLoad(path, args = []) {
   try {
@@ -51,7 +60,7 @@ function safeLoad(path, args = []) {
 
 // Routes
 const userRoutes = safeLoad("./routes/users");
-const postRoutes = safeLoad("./routes/posts", [upload]);
+const postRoutes = safeLoad("./routes/posts", [upload, cloudinary]);
 const commentRoutes = safeLoad("./routes/comments", [io]);
 const likeRoutes = safeLoad("./routes/likes", [io]);
 const friendRoutes = safeLoad("./routes/friend_requests", [io]);
@@ -92,5 +101,4 @@ http.listen(PORT, () => {
   console.log(`🚀 HTTP + Socket.IO server running on port ${PORT}`);
 });
 
-// Export for route use
 module.exports.io = io;

@@ -1,9 +1,8 @@
 const express = require("express");
 const pool = require("../db");
 
-module.exports = (upload) => {
+module.exports = (upload, cloudinary) => {
   const router = express.Router();
-  const apiBase = process.env.API_BASE_URL || "https://linkupsocial.onrender.com";
 
   // GET all posts
   router.get("/", async (req, res) => {
@@ -78,14 +77,15 @@ module.exports = (upload) => {
       );
       const postId = result.insertId;
 
-      // Save media if any
+      // Save media from Cloudinary
       if (req.files && req.files.length > 0) {
         for (const file of req.files) {
           const type = file.mimetype.startsWith("video") ? "video" : "image";
-          const url = `${apiBase}/uploads/${file.filename}`;
-          await pool.query("INSERT INTO media (postId, url, type) VALUES (?, ?, ?)", [
-            postId, url, type
-          ]);
+          const url = file.path; // this is the Cloudinary-hosted URL
+          await pool.query(
+            "INSERT INTO media (postId, url, type) VALUES (?, ?, ?)",
+            [postId, url, type]
+          );
         }
       }
 
