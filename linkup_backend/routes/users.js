@@ -8,24 +8,15 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-
-// ✅ GET user by username
+// ==================== GET: User by Username ====================
 router.get("/username/:username", async (req, res) => {
   const { username } = req.params;
-
   try {
-    const [rows] = await db.execute(
-      "SELECT * FROM users WHERE Username = ? LIMIT 1",
-      [username]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const [rows] = await db.execute("SELECT * FROM users WHERE Username = ? LIMIT 1", [username]);
+    if (!rows.length) return res.status(404).json({ message: "User not found" });
 
     const user = rows[0];
     let parsedLinks = [];
-
     try {
       parsedLinks = user.links ? JSON.parse(user.links) : [];
     } catch {
@@ -46,7 +37,7 @@ router.get("/username/:username", async (req, res) => {
       themeSongTitle: user.themeSongTitle,
       customImage: !!user.CustomImage,
       hasCoverPhoto: !!user.CoverPhoto,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     });
   } catch (err) {
     console.error("Error fetching user by username:", err);
@@ -54,8 +45,7 @@ router.get("/username/:username", async (req, res) => {
   }
 });
 
-
-// ✅ GET all users
+// ==================== GET: All Users ====================
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.execute("SELECT * FROM users");
@@ -66,30 +56,21 @@ router.get("/", async (req, res) => {
   }
 });
 
-
-// ✅ POST - Register new user
+// ==================== POST: Register User ====================
 router.post("/", async (req, res) => {
   const { FirstName, LastName, Username, email, Password, ProfilePic } = req.body;
-
   if (!FirstName || !LastName || !Username || !Password || !email) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
   try {
-    const [existing] = await db.execute(
-      "SELECT * FROM users WHERE Username = ? OR email = ?",
-      [Username, email]
-    );
-
-    if (existing.length > 0) {
-      return res.status(409).json({ error: "Username or email already exists" });
-    }
+    const [existing] = await db.execute("SELECT * FROM users WHERE Username = ? OR email = ?", [Username, email]);
+    if (existing.length > 0) return res.status(409).json({ error: "Username or email already exists" });
 
     const hashedPassword = await bcrypt.hash(Password, 10);
 
     const [result] = await db.execute(
-      `INSERT INTO users (FirstName, LastName, Username, email, Password, ProfilePic)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      "INSERT INTO users (FirstName, LastName, Username, email, Password, ProfilePic) VALUES (?, ?, ?, ?, ?, ?)",
       [FirstName, LastName, Username, email, hashedPassword, ProfilePic || null]
     );
 
@@ -100,8 +81,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-
-// ✅ POST - Login user
+// ==================== POST: Login ====================
 router.post("/login", async (req, res) => {
   const { loginId, Password } = req.body;
 
@@ -115,7 +95,7 @@ router.post("/login", async (req, res) => {
       [loginId, loginId]
     );
 
-    if (users.length === 0) {
+    if (!users.length) {
       return res.status(404).json({ error: "User not found." });
     }
 
@@ -126,11 +106,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Incorrect password." });
     }
 
-    const token = jwt.sign(
-      { id: user.id, Username: user.Username },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const token = jwt.sign({ id: user.id, Username: user.Username }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
     res.json({
       token,
@@ -142,21 +118,19 @@ router.post("/login", async (req, res) => {
         email: user.email,
         AboutMe: user.AboutMe,
         background_color: user.background_color,
-        ProfilePic: user.ProfilePic ?? null, // ✅ included for Sidebar etc.
-      }
+        ProfilePic: user.ProfilePic ?? null,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Login failed." });
+    res.status(500).json({ error: "Login failed", detail: err.message }); // Add detail temporarily
   }
 });
 
-
-// ✅ GET user by ID
+// ==================== GET: User by ID ====================
 router.get("/:id", async (req, res) => {
-  const { id } = req.params;
   try {
-    const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [id]);
+    const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: "User not found" });
     res.json(rows[0]);
   } catch (err) {
@@ -165,8 +139,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
-// ✅ PUT - Update profile info
+// ==================== PUT: Update Profile ====================
 router.put("/update-profile/:id", async (req, res) => {
   const { AboutMe, background_color, bio, links, themeSongUrl } = req.body;
 
@@ -174,33 +147,15 @@ router.put("/update-profile/:id", async (req, res) => {
     const fields = [];
     const values = [];
 
-    if (AboutMe !== undefined) {
-      fields.push("AboutMe = ?");
-      values.push(AboutMe);
-    }
-    if (links !== undefined) {
-      fields.push("links = ?");
-      values.push(links);
-    }
-    if (background_color !== undefined) {
-      fields.push("background_color = ?");
-      values.push(background_color);
-    }
-    if (bio !== undefined) {
-      fields.push("bio = ?");
-      values.push(bio);
-    }
-    if (themeSongUrl !== undefined) {
-      fields.push("themeSongUrl = ?");
-      values.push(themeSongUrl);
-    }
+    if (AboutMe !== undefined) fields.push("AboutMe = ?") && values.push(AboutMe);
+    if (links !== undefined) fields.push("links = ?") && values.push(links);
+    if (background_color !== undefined) fields.push("background_color = ?") && values.push(background_color);
+    if (bio !== undefined) fields.push("bio = ?") && values.push(bio);
+    if (themeSongUrl !== undefined) fields.push("themeSongUrl = ?") && values.push(themeSongUrl);
 
-    if (fields.length === 0) {
-      return res.status(400).json({ error: "No fields provided to update." });
-    }
+    if (!fields.length) return res.status(400).json({ error: "No fields provided to update." });
 
     values.push(req.params.id);
-
     const updateQuery = `UPDATE users SET ${fields.join(", ")} WHERE id = ?`;
     await db.execute(updateQuery, values);
 
@@ -211,23 +166,16 @@ router.put("/update-profile/:id", async (req, res) => {
   }
 });
 
-
-// ✅ Profile Picture Upload/Download
+// ==================== UPLOAD: Profile & Background ====================
 router.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) => {
   const { userId } = req.body;
-  if (!req.file || !userId) {
-    return res.status(400).json({ error: "Missing file or userId" });
-  }
+  if (!req.file || !userId) return res.status(400).json({ error: "Missing file or userId" });
 
   try {
     const [rows] = await db.execute("SELECT id FROM users WHERE id = ?", [userId]);
     if (!rows.length) return res.status(404).json({ error: "User not found" });
 
-    await db.execute("UPDATE users SET ProfilePic = ? WHERE id = ?", [
-      req.file.buffer,
-      userId,
-    ]);
-
+    await db.execute("UPDATE users SET ProfilePic = ? WHERE id = ?", [req.file.buffer, userId]);
     res.json({ url: `/api/users/${userId}/profile-pic` });
   } catch (err) {
     console.error("Upload failed:", err);
@@ -237,13 +185,8 @@ router.post("/upload-profile-pic", upload.single("profilePic"), async (req, res)
 
 router.get("/:id/profile-pic", async (req, res) => {
   try {
-    const userId = req.params.id;
-    const [rows] = await db.execute("SELECT ProfilePic FROM users WHERE id = ?", [userId]);
-
-    if (!rows[0] || !rows[0].ProfilePic) {
-      return res.status(404).send("No profile picture found");
-    }
-
+    const [rows] = await db.execute("SELECT ProfilePic FROM users WHERE id = ?", [req.params.id]);
+    if (!rows.length || !rows[0].ProfilePic) return res.status(404).send("No profile picture found");
     res.set("Content-Type", "image/*");
     res.send(rows[0].ProfilePic);
   } catch (err) {
@@ -252,8 +195,7 @@ router.get("/:id/profile-pic", async (req, res) => {
   }
 });
 
-
-// ✅ Background, Cover, and Custom Image Uploads
+// Background, cover, and custom image routes (unchanged)
 router.post("/upload-background", upload.single("background"), async (req, res) => {
   const userId = req.body.userId;
   const file = req.file;
