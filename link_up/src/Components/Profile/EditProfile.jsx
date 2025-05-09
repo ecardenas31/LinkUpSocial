@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { UserContext } from "../../contextProvider";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { fetchAPI } from "../../fetchAPI";
-import API from "../../api"; // Base API URL
+import API from "../../api";
 
 const CustomizeProfile = () => {
   const { user } = useContext(UserContext);
@@ -78,24 +78,55 @@ const CustomizeProfile = () => {
         localStorage.setItem("currentUser", JSON.stringify({ ...user, backgroundImageUrl: data.url }));
       }
     } catch (err) {
-      console.error(err);
+      console.error("Background upload failed:", err);
     } finally {
       setUploadingBg(false);
     }
   };
 
-  const handleProfilePicChange = (e) => {
+  const handleProfilePicChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !file.type.startsWith("image/")) return;
-    setStagedProfilePic(file);
-    setProfilePicUrl(URL.createObjectURL(file));
+
+    const formData = new FormData();
+    formData.append("profilePic", file);
+    formData.append("userId", user.id);
+
+    try {
+      const res = await fetchAPI(`${API}/users/upload-profile-pic`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res?.url) {
+        setProfilePicUrl(res.url);
+      }
+    } catch (err) {
+      console.error("Profile picture upload failed:", err);
+    }
   };
 
-  const handleCoverPhotoChange = (e) => {
+  const handleCoverPhotoChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !file.type.startsWith("image/")) return;
-    setStagedCoverPhoto(file);
-    setCoverPhotoUrl(URL.createObjectURL(file));
+
+    const formData = new FormData();
+    formData.append("coverPhoto", file);
+    formData.append("userId", user.id);
+
+    try {
+      const res = await fetchAPI(`${API}/users/upload-cover-photo`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res?.url) {
+        setCoverPhotoUrl(res.url);
+      } else {
+        throw new Error("Failed to upload cover photo.");
+      }
+    } catch (err) {
+      console.error("Cover photo upload failed:", err);
+    }
   };
 
   const handleSave = async () => {
@@ -111,31 +142,6 @@ const CustomizeProfile = () => {
         themeSongUrl: themeSongUrl.trim(),
         links: JSON.stringify(trimmedLinks),
       };
-
-      if (stagedProfilePic) {
-        const formData = new FormData();
-        formData.append("profilePic", stagedProfilePic);
-        formData.append("userId", user.id);
-        const res = await fetchAPI(`${API}/users/upload-profile-pic`, {
-          method: "POST",
-          body: formData,
-        });
-        if (res?.url) setProfilePicUrl(res.url);
-      }
-
-      if (stagedCoverPhoto) {
-        const formData = new FormData();
-        formData.append("coverPhoto", stagedCoverPhoto);
-        formData.append("userId", user.id);
-
-        const res = await fetchAPI(`${API}/users/upload-cover-photo`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (res?.url) setCoverPhotoUrl(res.url);
-        else throw new Error("Failed to upload cover photo.");
-      }
 
       if (customImageFile) {
         const formData = new FormData();
@@ -180,8 +186,7 @@ const CustomizeProfile = () => {
 
   return (
     <div className="container mt-5 p-4">
-      {/* Your profile customization UI goes here */}
-      {/* Display and upload logic for profilePicUrl, coverPhotoUrl, bgUrl, etc. */}
+      {/* Add form elements and preview using profilePicUrl, coverPhotoUrl, bgUrl here */}
     </div>
   );
 };

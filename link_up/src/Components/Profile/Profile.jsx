@@ -3,19 +3,16 @@ import { useParams, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import PostCard from "../PostCard/PostCard";
 import styles from "./Profile.module.css";
-import API from "../../api"; // ✅ Backend API base (includes /api)
-const STATIC_URL = "https://linkupsocial.onrender.com"; // ✅ Static files (images, etc.)
+import API from "../../api";
 
 const ProfilePage = () => {
   const { username } = useParams();
   const [profileUser, setProfileUser] = useState(null);
-  const hasCoverPhoto = !!profileUser?.hasCoverPhoto;
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
   const [likedPosts, setLikedPosts] = useState([]);
   const [userPosts, setUserPosts] = useState([]);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
-  const timestamp = Date.now();
 
   function detectEmbedType(url) {
     if (!url) return null;
@@ -34,25 +31,31 @@ const ProfilePage = () => {
         const data = await res.json();
         setProfileUser(data);
 
-        const bgPromise = new Promise((resolve) => {
-          const bgImg = new Image();
-          bgImg.src = `${API}/users/background/${data.id}?t=${Date.now()}`;
-          bgImg.onload = resolve;
-          bgImg.onerror = resolve;
-        });
+        const promises = [];
 
-        const coverPromise = new Promise((resolve) => {
-          if (data.CoverPhoto) {
-            const coverImg = new Image();
-            coverImg.src = `${API}/users/${data.id}/cover-photo?t=${Date.now()}`;
-            coverImg.onload = resolve;
-            coverImg.onerror = resolve;
-          } else {
-            resolve();
-          }
-        });
+        if (data.backgroundImageUrl) {
+          promises.push(
+            new Promise((resolve) => {
+              const bgImg = new Image();
+              bgImg.src = data.backgroundImageUrl;
+              bgImg.onload = resolve;
+              bgImg.onerror = resolve;
+            })
+          );
+        }
 
-        await Promise.all([bgPromise, coverPromise]);
+        if (data.coverPhotoUrl) {
+          promises.push(
+            new Promise((resolve) => {
+              const coverImg = new Image();
+              coverImg.src = data.coverPhotoUrl;
+              coverImg.onload = resolve;
+              coverImg.onerror = resolve;
+            })
+          );
+        }
+
+        await Promise.all(promises);
         setBackgroundLoaded(true);
         setLoading(false);
       } catch (err) {
@@ -89,10 +92,11 @@ const ProfilePage = () => {
 
   if (!profileUser) return <div className="text-center mt-5 text-danger">User not found.</div>;
 
-  const backgroundImage = `${API}/users/background/${profileUser.id}?t=${timestamp}`;
-  const profilePicUrl = `${STATIC_URL}/users/${profileUser.id}/profile-pic?t=${timestamp}`;
-  const coverPhotoUrl = `${API}/users/${profileUser.id}/cover-photo?t=${timestamp}`;
-  const customImageUrl = `${API}/users/custom-image/${profileUser.id}?t=${Date.now()}`;
+  // ✅ Use Cloudinary-hosted URLs from the backend
+  const backgroundImage = profileUser.backgroundImageUrl || "";
+  const profilePicUrl = profileUser.profilePicUrl || "/default-avatar.png";
+  const coverPhotoUrl = profileUser.coverPhotoUrl || "";
+  const customImageUrl = profileUser.customImageUrl || "";
   const aboutMeHTML = profileUser.AboutMe || "<p>No info yet.</p>";
 
   return (
@@ -100,14 +104,78 @@ const ProfilePage = () => {
       className={styles.profileContainer}
       style={{
         minHeight: "100vh",
-        backgroundImage: `url(${backgroundImage})`,
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         paddingTop: "60px",
       }}
     >
-      {/* ✅ All your UI logic and tab rendering remains unchanged */}
+      {/* ✅ Example rendering content */}
+      <div className="container">
+        <div className="text-center mb-4">
+          <img
+            src={profilePicUrl}
+            alt="Profile"
+            className="rounded-circle"
+            width="120"
+            height="120"
+          />
+          <h3 className="mt-3">{profileUser.FirstName} {profileUser.LastName}</h3>
+          <p className="text-muted">@{profileUser.Username}</p>
+        </div>
+
+        <div className="text-center mb-3">
+          {coverPhotoUrl && (
+            <img
+              src={coverPhotoUrl}
+              alt="Cover"
+              className="img-fluid rounded"
+              style={{ maxHeight: "250px" }}
+            />
+          )}
+        </div>
+
+        <div className="card p-3 mb-4">
+          <h5>About Me</h5>
+          <div dangerouslySetInnerHTML={{ __html: aboutMeHTML }} />
+        </div>
+
+        <div className="d-flex justify-content-center gap-3 mb-4">
+          <button
+            className={`btn ${tab === "posts" ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setTab("posts")}
+          >
+            Posts
+          </button>
+          <button
+            className={`btn ${tab === "liked" ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setTab("liked")}
+          >
+            Liked
+          </button>
+        </div>
+
+        {tab === "posts" && (
+          userPosts.length > 0 ? (
+            userPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))
+          ) : (
+            <p className="text-center text-muted">No posts yet.</p>
+          )
+        )}
+
+        {tab === "liked" && (
+          likedPosts.length > 0 ? (
+            likedPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))
+          ) : (
+            <p className="text-center text-muted">No liked posts yet.</p>
+          )
+        )}
+      </div>
     </div>
   );
 };
