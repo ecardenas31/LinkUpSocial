@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { UserContext } from "../../contextProvider";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { fetchAPI } from "../../fetchAPI";
+import API from "../../api"; // Base API URL
+const STATIC_URL = "https://linkupsocial.onrender.com"; // For serving images outside /api
 
 const CustomizeProfile = () => {
   const { user } = useContext(UserContext);
@@ -24,17 +26,15 @@ const CustomizeProfile = () => {
   const [stagedCoverPhoto, setStagedCoverPhoto] = useState(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5001";
-
   useEffect(() => {
     if (user && user.Username) {
-      fetchAPI(`${BACKEND_URL}/api/users/${user.id}`)
+      fetchAPI(`${API}/users/${user.id}`)
         .then(fresh => {
           setCardColor(fresh.background_color || "#ffffff");
           setOriginalCardColor(fresh.background_color || "#ffffff");
           setHtmlInput(fresh.AboutMe || "");
           setOriginalAboutMe(fresh.AboutMe || "");
-          setProfilePicUrl(`${BACKEND_URL}/users/${fresh.id}/profile-pic`);
+          setProfilePicUrl(`${STATIC_URL}/users/${fresh.id}/profile-pic`);
           setThemeSongUrl(fresh.themeSongUrl || "");
           setThemeSongTitle(fresh.themeSongTitle || "");
           setBioInput(fresh.bio || "");
@@ -64,17 +64,15 @@ const CustomizeProfile = () => {
 
     try {
       setUploadingBg(true);
-      const data = await fetchAPI(`${BACKEND_URL}/api/users/upload-background`, {
+      const data = await fetchAPI(`${API}/users/upload-background`, {
         method: "POST",
         body: formData,
       });
 
       if (data.url) {
-        const fullUrl = `${BACKEND_URL}${data.url}`;
+        const fullUrl = `${STATIC_URL}${data.url}`;
         setBgUrl(fullUrl);
-
-        const updatedUser = { ...user };
-        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+        localStorage.setItem("currentUser", JSON.stringify({ ...user }));
       }
     } catch (err) {
       console.error(err);
@@ -115,7 +113,7 @@ const CustomizeProfile = () => {
         const formData = new FormData();
         formData.append("profilePic", stagedProfilePic);
         formData.append("userId", user.id);
-        await fetchAPI(`${BACKEND_URL}/api/users/upload-profile-pic`, {
+        await fetchAPI(`${API}/users/upload-profile-pic`, {
           method: "POST",
           body: formData,
         });
@@ -126,28 +124,26 @@ const CustomizeProfile = () => {
         formData.append("coverPhoto", stagedCoverPhoto);
         formData.append("userId", user.id);
 
-        const res = await fetchAPI(`${BACKEND_URL}/api/users/upload-cover-photo`, {
+        const res = await fetchAPI(`${API}/users/upload-cover-photo`, {
           method: "POST",
           body: formData,
         });
 
-        if (!res.url) {
-          throw new Error("Failed to upload cover photo.");
-        }
+        if (!res.url) throw new Error("Failed to upload cover photo.");
       }
 
       if (customImageFile) {
         const formData = new FormData();
         formData.append("customImage", customImageFile);
         formData.append("userId", user.id);
-        await fetchAPI(`${BACKEND_URL}/api/users/upload-custom-image`, {
+        await fetchAPI(`${API}/users/upload-custom-image`, {
           method: "POST",
           body: formData,
         });
       }
 
       if (Object.keys(updatedFields).length > 0) {
-        await fetchAPI(`${BACKEND_URL}/api/users/update-profile/${user.id}`, {
+        await fetchAPI(`${API}/users/update-profile/${user.id}`, {
           method: "PUT",
           body: JSON.stringify(updatedFields),
         });

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import styles from "./PostCard.module.css";
 import API from "../../api";
 
+const STATIC_URL = "https://linkupsocial.onrender.com";
+
 const PostCard = ({ post, onPostDeleted }) => {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
@@ -22,7 +24,6 @@ const PostCard = ({ post, onPostDeleted }) => {
   const [commentEditedContent, setCommentEditedContent] = useState("");
 
   const [pendingCommentDelete, setPendingCommentDelete] = useState(null);
-
 
   useEffect(() => {
     if (!currentUser) return;
@@ -92,13 +93,13 @@ const PostCard = ({ post, onPostDeleted }) => {
       await fetch(`${API}/posts/${post.id}`, { method: "DELETE" });
       document.getElementById(`closeModal-${post.id}`)?.click();
       if (typeof onPostDeleted === "function") {
-        onPostDeleted(post.id); // trigger removal in parent
+        onPostDeleted(post.id);
       }
     } catch (err) {
       console.error("Failed to delete post:", err);
       alert("Could not delete post.");
     }
-  };  
+  };
 
   const handleEditSave = async () => {
     try {
@@ -137,9 +138,7 @@ const PostCard = ({ post, onPostDeleted }) => {
 
   const handleConfirmCommentDelete = async () => {
     try {
-      await fetch(`${API}/comments/${pendingCommentDelete}`, {
-        method: "DELETE",
-      });
+      await fetch(`${API}/comments/${pendingCommentDelete}`, { method: "DELETE" });
       setComments((prev) => prev.filter((c) => c.id !== pendingCommentDelete));
       setPendingCommentDelete(null);
     } catch (err) {
@@ -170,19 +169,11 @@ const PostCard = ({ post, onPostDeleted }) => {
                   onChange={(e) => setCommentEditedContent(e.target.value)}
                 />
                 <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleCommentEditSave(comment.id)}
-                  >
-                    Save
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => {
-                      setIsCommentEditing(null);
-                      setCommentEditedContent("");
-                    }}
-                  >
+                  <button className="btn btn-primary btn-sm" onClick={() => handleCommentEditSave(comment.id)}>Save</button>
+                  <button className="btn btn-outline-secondary btn-sm" onClick={() => {
+                    setIsCommentEditing(null);
+                    setCommentEditedContent("");
+                  }}>
                     Cancel
                   </button>
                 </div>
@@ -192,46 +183,24 @@ const PostCard = ({ post, onPostDeleted }) => {
             )}
 
             <div className="d-flex flex-wrap gap-2">
-              <button
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => setReplyBox((prev) => ({ ...prev, [comment.id]: "" }))}
-              >
-                Reply
-              </button>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setReplyBox((prev) => ({ ...prev, [comment.id]: "" }))}>Reply</button>
 
               {comments.some((c) => c.parentId === comment.id) && (
-                <button
-                  className="btn btn-sm btn-outline-info"
-                  onClick={() =>
-                    setExpandedReplies((prev) => ({
-                      ...prev,
-                      [comment.id]: !prev[comment.id],
-                    }))
-                  }
-                >
+                <button className="btn btn-sm btn-outline-info" onClick={() => setExpandedReplies((prev) => ({
+                  ...prev,
+                  [comment.id]: !prev[comment.id],
+                }))}>
                   {expandedReplies[comment.id] ? "Hide Replies" : "View Replies"}
                 </button>
               )}
 
               {isOwner && !isBeingEdited && (
                 <>
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => {
-                      setIsCommentEditing(comment.id);
-                      setCommentEditedContent(comment.text);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    data-bs-toggle="modal"
-                    data-bs-target={`#deleteCommentModal-${comment.id}`}
-                    onClick={() => setPendingCommentDelete(comment.id)}
-                  >
-                    Delete
-                  </button>
+                  <button className="btn btn-sm btn-outline-primary" onClick={() => {
+                    setIsCommentEditing(comment.id);
+                    setCommentEditedContent(comment.text);
+                  }}>Edit</button>
+                  <button className="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target={`#deleteCommentModal-${comment.id}`} onClick={() => setPendingCommentDelete(comment.id)}>Delete</button>
                 </>
               )}
             </div>
@@ -260,40 +229,18 @@ const PostCard = ({ post, onPostDeleted }) => {
               <div className="ms-4 border-start ps-3 mt-2">{renderComments(comment.id)}</div>
             )}
 
-            {/* 🔴 Comment Delete Modal */}
-            <div
-              className="modal fade"
-              id={`deleteCommentModal-${comment.id}`}
-              tabIndex="-1"
-              aria-labelledby={`deleteCommentModalLabel-${comment.id}`}
-              aria-hidden="true"
-            >
+            {/* Delete Comment Modal */}
+            <div className="modal fade" id={`deleteCommentModal-${comment.id}`} tabIndex="-1" aria-hidden="true">
               <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                   <div className="modal-header">
-                    <h5 className="modal-title" id={`deleteCommentModalLabel-${comment.id}`}>
-                      Delete Comment
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      data-bs-dismiss="modal"
-                      aria-label="Close"
-                    ></button>
+                    <h5 className="modal-title">Delete Comment</h5>
+                    <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
                   </div>
                   <div className="modal-body">Are you sure you want to delete this comment?</div>
                   <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      data-bs-dismiss="modal"
-                      onClick={handleConfirmCommentDelete}
-                    >
-                      Delete
-                    </button>
+                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" className="btn btn-danger" onClick={handleConfirmCommentDelete}>Delete</button>
                   </div>
                 </div>
               </div>
@@ -316,21 +263,10 @@ const PostCard = ({ post, onPostDeleted }) => {
 
           {isPostEditing ? (
             <>
-              <textarea
-                className="form-control mb-2"
-                value={postEditedContent}
-                onChange={(e) => setPostEditedContent(e.target.value)}
-              />
+              <textarea className="form-control mb-2" value={postEditedContent} onChange={(e) => setPostEditedContent(e.target.value)} />
               <div className="d-flex gap-2 mb-3">
-                <button className="btn btn-primary btn-sm" onClick={handleEditSave}>
-                  Save
-                </button>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => setIsPostEditing(false)}
-                >
-                  Cancel
-                </button>
+                <button className="btn btn-primary btn-sm" onClick={handleEditSave}>Save</button>
+                <button className="btn btn-outline-secondary btn-sm" onClick={() => setIsPostEditing(false)}>Cancel</button>
               </div>
             </>
           ) : (
@@ -342,7 +278,7 @@ const PostCard = ({ post, onPostDeleted }) => {
               file.type === "image" ? (
                 <img
                   key={index}
-                  src={`http://localhost:5001${file.url}`}
+                  src={`${STATIC_URL}${file.url}`}
                   alt={`media-${index}`}
                   className="img-fluid rounded mb-3"
                 />
@@ -353,18 +289,14 @@ const PostCard = ({ post, onPostDeleted }) => {
                   className="img-fluid rounded mb-3"
                   style={{ maxHeight: "500px" }}
                 >
-                  <source src={`http://localhost:5001${file.url}`} type="video/mp4" />
+                  <source src={`${STATIC_URL}${file.url}`} type="video/mp4" />
                 </video>
               )
             )}
 
           <div className="d-flex justify-content-between align-items-center mb-2">
             <div className="d-flex gap-2">
-              <button
-                onClick={handleLike}
-                disabled={isLiking}
-                className={`btn btn-sm ${liked ? styles.liked : styles.likeBtn}`}
-              >
+              <button onClick={handleLike} disabled={isLiking} className={`btn btn-sm ${liked ? styles.liked : styles.likeBtn}`}>
                 ❤️ {likes}
               </button>
               <button className="btn btn-sm btn-outline-secondary" onClick={toggleComments}>
@@ -374,19 +306,8 @@ const PostCard = ({ post, onPostDeleted }) => {
 
             {currentUser?.id === post.userId && (
               <div className="d-flex gap-2">
-                <button
-                  className="btn btn-sm btn-outline-primary"
-                  onClick={() => setIsPostEditing(true)}
-                >
-                  ✏️
-                </button>
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  data-bs-toggle="modal"
-                  data-bs-target={`#deleteModal-${post.id}`}
-                >
-                  🗑️
-                </button>
+                <button className="btn btn-sm btn-outline-primary" onClick={() => setIsPostEditing(true)}>✏️</button>
+                <button className="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target={`#deleteModal-${post.id}`}>🗑️</button>
               </div>
             )}
           </div>
@@ -402,45 +323,25 @@ const PostCard = ({ post, onPostDeleted }) => {
                   className="form-control me-2"
                   placeholder="Write a comment..."
                 />
-                <button className="btn btn-success" onClick={() => handleCommentSubmit()}>
-                  Post
-                </button>
+                <button className="btn btn-success" onClick={() => handleCommentSubmit()}>Post</button>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ✅ Delete Post Modal */}
-      <div
-        className="modal fade"
-        id={`deleteModal-${post.id}`}
-        tabIndex="-1"
-        aria-labelledby={`deleteModalLabel-${post.id}`}
-        aria-hidden="true"
-      >
+      {/* Delete Post Modal */}
+      <div className="modal fade" id={`deleteModal-${post.id}`} tabIndex="-1" aria-labelledby={`deleteModalLabel-${post.id}`} aria-hidden="true">
         <div className="modal-dialog modal-dialog-centered">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title" id={`deleteModalLabel-${post.id}`}>
-                Confirm Delete
-              </h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-                id={`closeModal-${post.id}`}
-              ></button>
+              <h5 className="modal-title">Confirm Delete</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" id={`closeModal-${post.id}`} />
             </div>
             <div className="modal-body">Are you sure you want to permanently delete this post?</div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                Cancel
-              </button>
-              <button type="button" className="btn btn-danger" onClick={handleDeleteConfirmed}>
-                Yes, Delete
-              </button>
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" className="btn btn-danger" onClick={handleDeleteConfirmed}>Yes, Delete</button>
             </div>
           </div>
         </div>

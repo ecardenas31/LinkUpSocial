@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import styles from "./Sidebar.module.css";
 import socket from "../../socket";
+import API from "../../api"; // ✅ Use this instead of hardcoded localhost
 
 const Sidebar = () => {
   const [sidebarUser, setSidebarUser] = useState(null);
@@ -11,8 +12,8 @@ const Sidebar = () => {
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     if (!currentUser || !currentUser.id) return;
 
-    // 🔥 Fetch full user fresh from database
-    fetch(`http://localhost:5001/api/users/${currentUser.id}`)
+    // ✅ Fetch from deployed backend
+    fetch(`${API}/users/${currentUser.id}`)
       .then((res) => res.json())
       .then((data) => setSidebarUser(data))
       .catch((err) => console.error("Failed to load sidebar user:", err));
@@ -41,13 +42,13 @@ const Sidebar = () => {
 
       <div className="mb-4 w-100 text-center">
         <img
-          src={`http://localhost:5001/users/${sidebarUser.id}/profile-pic?${Date.now()}`}
+          src={`${API}/users/${sidebarUser.id}/profile-pic?${Date.now()}`} // ✅ Use deployed base URL
           alt="Avatar"
           className="rounded-circle mb-2 shadow-sm border"
           style={{ width: "70px", height: "70px", objectFit: "cover" }}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = "/default.jpg"; 
+            e.target.src = "/default.jpg"; // fallback if image fails
           }}
         />
         <div className="fw-semibold">

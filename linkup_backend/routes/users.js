@@ -1,16 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const pool = require("../db");
-const multer = require("multer");
 const db = require("../db");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const multer = require("multer");
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+
+// ✅ GET user by username
 router.get("/username/:username", async (req, res) => {
   const { username } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.execute(
       "SELECT * FROM users WHERE Username = ? LIMIT 1",
       [username]
     );
@@ -20,11 +24,11 @@ router.get("/username/:username", async (req, res) => {
     }
 
     const user = rows[0];
-    
     let parsedLinks = [];
+
     try {
       parsedLinks = user.links ? JSON.parse(user.links) : [];
-    } catch (err) {
+    } catch {
       parsedLinks = [];
     }
 
@@ -37,14 +41,13 @@ router.get("/username/:username", async (req, res) => {
       bio: user.bio,
       AboutMe: user.AboutMe,
       background_color: user.background_color,
-      links: parsedLinks, 
+      links: parsedLinks,
       themeSongUrl: user.themeSongUrl,
       themeSongTitle: user.themeSongTitle,
       customImage: !!user.CustomImage,
       hasCoverPhoto: !!user.CoverPhoto,
       createdAt: user.createdAt
     });
-
   } catch (err) {
     console.error("Error fetching user by username:", err);
     res.status(500).json({ message: "Server error" });
@@ -52,10 +55,10 @@ router.get("/username/:username", async (req, res) => {
 });
 
 
-// GET all users
+// ✅ GET all users
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM users");
+    const [rows] = await db.execute("SELECT * FROM users");
     res.json(rows);
   } catch (err) {
     console.error("Fetch users error:", err);
@@ -63,28 +66,33 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST register new user
+
+// ✅ POST - Register new user
 router.post("/", async (req, res) => {
   const { FirstName, LastName, Username, email, Password, ProfilePic } = req.body;
+
   if (!FirstName || !LastName || !Username || !Password || !email) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
   try {
-    const [existing] = await pool.query(
+    const [existing] = await db.execute(
       "SELECT * FROM users WHERE Username = ? OR email = ?",
       [Username, email]
     );
+
     if (existing.length > 0) {
       return res.status(409).json({ error: "Username or email already exists" });
     }
+
     const hashedPassword = await bcrypt.hash(Password, 10);
 
-    const [result] = await pool.query(
+    const [result] = await db.execute(
       `INSERT INTO users (FirstName, LastName, Username, email, Password, ProfilePic)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [FirstName, LastName, Username, email, hashedPassword, ProfilePic || null]
     );
+
     res.status(201).json({ message: "User created", userId: result.insertId });
   } catch (err) {
     console.error("Sign-up error:", err);
@@ -92,12 +100,10 @@ router.post("/", async (req, res) => {
   }
 });
 
-// POST login
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
+// ✅ POST - Login user
 router.post("/login", async (req, res) => {
-  const { loginId, Password } = req.body; 
+  const { loginId, Password } = req.body;
 
   if (!loginId || !Password) {
     return res.status(400).json({ error: "Username/Email and Password are required." });
@@ -106,7 +112,7 @@ router.post("/login", async (req, res) => {
   try {
     const [users] = await db.execute(
       "SELECT * FROM users WHERE Username = ? OR email = ?",
-      [loginId, loginId] 
+      [loginId, loginId]
     );
 
     if (users.length === 0) {
@@ -114,7 +120,6 @@ router.post("/login", async (req, res) => {
     }
 
     const user = users[0];
-
     const passwordMatch = await bcrypt.compare(Password, user.Password);
 
     if (!passwordMatch) {
@@ -137,7 +142,8 @@ router.post("/login", async (req, res) => {
         email: user.email,
         AboutMe: user.AboutMe,
         background_color: user.background_color,
-      },
+        ProfilePic: user.ProfilePic ?? null, // ✅ included for Sidebar etc.
+      }
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -145,7 +151,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// PUT update profile info (about me, background_color)
+
+// ✅ GET user by ID
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [id]);
+    if (!rows.length) return res.status(404).json({ error: "User not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("User fetch error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+// ✅ PUT - Update profile info
 router.put("/update-profile/:id", async (req, res) => {
   const { AboutMe, background_color, bio, links, themeSongUrl } = req.body;
 
@@ -161,7 +182,6 @@ router.put("/update-profile/:id", async (req, res) => {
       fields.push("links = ?");
       values.push(links);
     }
-    
     if (background_color !== undefined) {
       fields.push("background_color = ?");
       values.push(background_color);
@@ -170,7 +190,6 @@ router.put("/update-profile/:id", async (req, res) => {
       fields.push("bio = ?");
       values.push(bio);
     }
-    
     if (themeSongUrl !== undefined) {
       fields.push("themeSongUrl = ?");
       values.push(themeSongUrl);
@@ -192,48 +211,67 @@ router.put("/update-profile/:id", async (req, res) => {
   }
 });
 
-// Upload background image to SQL 
-router.post("/upload-background", upload.single("background"), async (req, res) => {
-  const userId = req.body.userId;
-  const file = req.file;
 
-  if (!file || !userId) {
+// ✅ Profile Picture Upload/Download
+router.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) => {
+  const { userId } = req.body;
+  if (!req.file || !userId) {
     return res.status(400).json({ error: "Missing file or userId" });
   }
 
   try {
-    await pool.query("UPDATE users SET backgroundPhoto = ? WHERE id = ?", [
-      file.buffer,
+    const [rows] = await db.execute("SELECT id FROM users WHERE id = ?", [userId]);
+    if (!rows.length) return res.status(404).json({ error: "User not found" });
+
+    await db.execute("UPDATE users SET ProfilePic = ? WHERE id = ?", [
+      req.file.buffer,
       userId,
     ]);
+
+    res.json({ url: `/api/users/${userId}/profile-pic` });
+  } catch (err) {
+    console.error("Upload failed:", err);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+router.get("/:id/profile-pic", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const [rows] = await db.execute("SELECT ProfilePic FROM users WHERE id = ?", [userId]);
+
+    if (!rows[0] || !rows[0].ProfilePic) {
+      return res.status(404).send("No profile picture found");
+    }
+
+    res.set("Content-Type", "image/*");
+    res.send(rows[0].ProfilePic);
+  } catch (err) {
+    console.error("Error fetching profile pic:", err);
+    res.status(500).send("Internal server error");
+  }
+});
+
+
+// ✅ Background, Cover, and Custom Image Uploads
+router.post("/upload-background", upload.single("background"), async (req, res) => {
+  const userId = req.body.userId;
+  const file = req.file;
+  if (!file || !userId) return res.status(400).json({ error: "Missing file or userId" });
+
+  try {
+    await db.execute("UPDATE users SET backgroundPhoto = ? WHERE id = ?", [file.buffer, userId]);
     res.json({ success: true });
   } catch (err) {
     console.error("Upload failed:", err);
     res.status(500).json({ error: "Upload failed" });
   }
 });
-router.get("/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
-    if (!rows.length) return res.status(404).json({ error: "User not found" });
-    res.json(rows[0]);
-  } catch (err) {
-    console.error("User fetch error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-// Serve background image
+
 router.get("/background/:userId", async (req, res) => {
-  const { userId } = req.params;
-
   try {
-    const [rows] = await pool.query("SELECT backgroundPhoto FROM users WHERE id = ?", [userId]);
-
-    if (!rows.length || !rows[0].backgroundPhoto) {
-      return res.status(404).send("Image not found");
-    }
-
+    const [rows] = await db.execute("SELECT backgroundPhoto FROM users WHERE id = ?", [req.params.userId]);
+    if (!rows.length || !rows[0].backgroundPhoto) return res.status(404).send("Image not found");
     res.set("Content-Type", "image/*");
     res.send(rows[0].backgroundPhoto);
   } catch (err) {
@@ -241,128 +279,51 @@ router.get("/background/:userId", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
-// insert new pfp to db
-router.post("/upload-profile-pic", upload.single("profilePic"), async (req, res) => {
-  const { userId } = req.body;
-  if (!req.file || !userId) {
-    console.log("Missing file or userId");
-    return res.status(400).json({ error: "Missing file or userId" });
-  }
-  try {
-    const [rows] = await db.execute("SELECT id FROM users WHERE id = ?", [userId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    await db.execute("UPDATE users SET ProfilePic = ? WHERE id = ?", [
-      req.file.buffer,
-      userId,
-    ]);
-    res.json({ url: `/users/${userId}/profile-pic` });
-  } catch (err) {
-    console.error("Upload failed:", err);
-    res.status(500).json({ error: "Upload failed" });
-  }
-});
 
-
-// get pfp from db
-router.get("/users/:id/profile-pic", async (req, res) => {
-  try {
-    const userId = req.params.id;
-    console.log("Fetching profile pic for user:", userId);
-
-    const [rows] = await db.execute("SELECT ProfilePic FROM users WHERE id = ?", [userId]);
-
-    if (!rows[0] || !rows[0].ProfilePic) {
-      console.log("No profile picture found");
-      return res.status(404).send("No profile picture found");
-    }
-
-    res.set("Content-Type", "image/*");
-    res.send(rows[0].ProfilePic);
-  } catch (err) {
-    console.error("ERROR fetching profile pic:", err);
-    res.status(500).send("Internal server error");
-  }
-});
-
-// Upload cover photo
 router.post("/upload-cover-photo", upload.single("coverPhoto"), async (req, res) => {
   const userId = req.body.userId;
   const file = req.file;
-
-  if (!file || !userId) {
-    return res.status(400).json({ error: "Missing file or userId" });
-  }
-
-  const fileUrl = `/uploads/${file.filename}`;
+  if (!file || !userId) return res.status(400).json({ error: "Missing file or userId" });
 
   try {
-    await pool.query(
-      "UPDATE users SET CoverPhoto = ? WHERE id = ?",
-      [file.buffer, userId]
-    );
-    res.json({ url: fileUrl });
+    await db.execute("UPDATE users SET CoverPhoto = ? WHERE id = ?", [file.buffer, userId]);
+    res.json({ url: `/api/users/cover-photo/${userId}` });
   } catch (err) {
     console.error("Upload failed:", err);
     res.status(500).json({ error: "Upload failed" });
   }
 });
 
-// Get cover photo
 router.get("/cover-photo/:id", async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const [rows] = await pool.query('SELECT CoverPhoto FROM users WHERE id = ?', [id]);
-
-    if (!rows.length || !rows[0].CoverPhoto) {
-      return res.status(404).send("Cover photo not found");
-    }
-
-    res.writeHead(200, { 'Content-Type': 'image/*' });
-    res.end(rows[0].CoverPhoto);
+    const [rows] = await db.execute("SELECT CoverPhoto FROM users WHERE id = ?", [req.params.id]);
+    if (!rows.length || !rows[0].CoverPhoto) return res.status(404).send("Cover photo not found");
+    res.set("Content-Type", "image/*");
+    res.send(rows[0].CoverPhoto);
   } catch (err) {
-    console.error(err);
+    console.error("Cover photo fetch failed:", err);
     res.status(500).send("Server error");
   }
 });
-// upload custom image
+
 router.post("/upload-custom-image", upload.single("customImage"), async (req, res) => {
   const { userId } = req.body;
-
-  if (!req.file || !userId) {
-    return res.status(400).json({ error: "Missing file or userId" });
-  }
+  if (!req.file || !userId) return res.status(400).json({ error: "Missing file or userId" });
 
   try {
-    const [rows] = await db.execute("SELECT id FROM users WHERE id = ?", [userId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    await db.execute("UPDATE users SET CustomImage = ? WHERE id = ?", [
-      req.file.buffer,
-      userId,
-    ]);
-
+    await db.execute("UPDATE users SET CustomImage = ? WHERE id = ?", [req.file.buffer, userId]);
     res.json({ success: true });
   } catch (err) {
     console.error("Upload custom image failed:", err);
     res.status(500).json({ error: "Upload failed" });
   }
 });
-// retreive custom image
+
 router.get("/custom-image/:id", async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const [rows] = await db.execute("SELECT CustomImage FROM users WHERE id = ?", [id]);
-    if (rows.length === 0 || !rows[0].CustomImage) {
-      return res.status(404).send("Custom image not found.");
-    }
-
-    res.setHeader("Content-Type", "image/*");
+    const [rows] = await db.execute("SELECT CustomImage FROM users WHERE id = ?", [req.params.id]);
+    if (!rows.length || !rows[0].CustomImage) return res.status(404).send("Custom image not found.");
+    res.set("Content-Type", "image/*");
     res.send(rows[0].CustomImage);
   } catch (err) {
     console.error("Fetch custom image failed:", err);
