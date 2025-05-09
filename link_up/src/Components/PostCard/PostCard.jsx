@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import styles from "./PostCard.module.css";
 import API from "../../api";
 
-const STATIC_URL = "https://linkupsocial.onrender.com";
+const STATIC_URL = API;
 
 const PostCard = ({ post, onPostDeleted }) => {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
